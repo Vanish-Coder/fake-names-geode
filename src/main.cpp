@@ -24,6 +24,10 @@ constexpr float ICON_MAX_GAP = 30.0f;  // how far from the name an icon can be
 // scaled down to fit (in screen units)
 constexpr float MAX_LABEL_WIDTH = 180.0f;
 
+// In list cells, which part of the author name stays fixed when the text
+// changes. true = left edge (left-aligned names), false = centre.
+constexpr bool CELL_KEEP_LEFT_EDGE = true;
+
 // True while our popup is on screen, so it can't open twice.
 static bool s_popupOpen = false;
 
@@ -105,8 +109,13 @@ struct Neighbor {
     bool onRight;     // true if it sits to the right of the name
 };
 
-// Finds small nodes right next to the name button among root's children.
-static void collectNeighbors(CCNode* root, CCNode* nameNode, CCRect const& nameBox, std::vector<Neighbor>& out) {
+// Finds small nodes right next to the name among root's children.
+// deep = true also searches inside larger containers (used for list cells,
+// where icons can be nested a few levels down).
+static void collectNeighbors(
+    CCNode* root, CCNode* nameNode, CCRect const& nameBox,
+    std::vector<Neighbor>& out, bool deep = false
+) {
     if (!root) return;
     auto children = root->getChildren();
     if (!children) return;
@@ -120,7 +129,13 @@ static void collectNeighbors(CCNode* root, CCNode* nameNode, CCRect const& nameB
         if (!child || child == nameNode || !child->isVisible()) continue;
 
         auto box = worldBounds(child);
-        if (box.size.width <= 0 || box.size.width > ICON_MAX_SIZE || box.size.height > ICON_MAX_SIZE) continue;
+
+        // Too big to be an icon: it may be a container holding icons
+        if (box.size.width > ICON_MAX_SIZE || box.size.height > ICON_MAX_SIZE) {
+            if (deep) collectNeighbors(child, nameNode, nameBox, out, true);
+            continue;
+        }
+        if (box.size.width <= 0) continue;
 
         // Must be on roughly the same line as the name
         float centerY = box.origin.y + box.size.height / 2;
@@ -247,6 +262,31 @@ static void replaceLabelText(CCLabelBMFont* label, std::string const& text) {
     }
 }
 
+// After a name changed width, pins one edge (or the centre) of it back to
+// where it was and moves nearby icons along with the name's edges.
+static void keepNameAnchored(CCNode* nameNode, CCRect const& before, std::vector<Neighbor> const& neighbors) {
+    auto after = worldBounds(nameNode);
+
+    float dx;
+    if (CELL_KEEP_LEFT_EDGE) {
+        dx = before.origin.x - after.origin.x;
+    } else {
+        dx = (before.origin.x + before.size.width / 2) - (after.origin.x + after.size.width / 2);
+    }
+
+    // Shift the name so the chosen point stays where it was
+    if (auto parent = nameNode->getParent()) {
+        auto wp = parent->convertToWorldSpace(nameNode->getPosition());
+        wp.x += dx;
+        nameNode->setPosition(parent->convertToNodeSpace(wp));
+    }
+
+    // Then move the icons according to the name's corrected edges
+    CCRect corrected(after.origin.x + dx, after.origin.y, after.size.width, after.size.height);
+    shiftNeighbors(neighbors, before, corrected);
+    log::debug("Re-aligned author name, moved {} icon(s)", neighbors.size());
+}
+
 // Finds the level's name and author labels anywhere under root by matching
 // their text against the level's real name and creator, then swaps in the
 // saved overrides. Used for list cells and the pause screen.
@@ -274,7 +314,24 @@ static void applyToLabels(CCNode* root, GJGameLevel* level) {
         if (auto label = findLabelWithText(root, { realAuthor, "By " + realAuthor })) {
             // Keep a "By " prefix if the original label had one
             bool hasPrefix = std::string(label->getString()).rfind("By ", 0) == 0;
+
+            // The node that actually sits in the layout: the button around
+            // the label if there is one, otherwise the label itself
+            CCNode* nameNode = label;
+            if (typeinfo_cast<CCMenuItemSpriteExtra*>(label->getParent())) {
+                nameNode = label->getParent();
+            }
+
+            // 1. Remember where the name and nearby icons are now
+            auto before = worldBounds(nameNode);
+            std::vector<Neighbor> neighbors;
+            collectNeighbors(root, nameNode, before, neighbors, true);
+
+            // 2. Change the text
             replaceLabelText(label, hasPrefix ? "By " + ov.author : ov.author);
+
+            // 3. Put the name back in place and move the icons with it
+            keepNameAnchored(nameNode, before, neighbors);
         } else {
             log::debug("Could not find author label for level {}", levelID);
         }
