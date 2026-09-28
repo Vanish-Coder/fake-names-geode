@@ -447,72 +447,84 @@ protected:
         m_scrollLayer->m_contentLayer->setContentSize({ POPUP_WIDTH, 400.0f });
         m_mainLayer->addChildAtPosition(m_scrollLayer, Anchor::Center, ccp(0, -10));
 
-        float yOffset = 140.0f;
+        float yOffset = 360.0f;
 
         // Level name
         auto nameLabel = CCLabelBMFont::create("Level name", "goldFont.fnt");
         nameLabel->setScale(0.5f);
-        m_scrollLayer->m_contentLayer->addChildAtPosition(nameLabel, Anchor::TopLeft, ccp(POPUP_WIDTH / 2, yOffset));
+        nameLabel->setPosition(ccp(POPUP_WIDTH / 2, yOffset));
+        m_scrollLayer->m_contentLayer->addChild(nameLabel);
 
         m_nameInput = TextInput::create(INPUT_WIDTH, std::string(level->m_levelName));
         m_nameInput->setMaxCharCount(MAX_NAME_LENGTH);
         m_nameInput->setString(current.name);
-        m_scrollLayer->m_contentLayer->addChildAtPosition(m_nameInput, Anchor::TopLeft, ccp(POPUP_WIDTH / 2, yOffset - 23));
+        m_nameInput->setPosition(ccp(POPUP_WIDTH / 2, yOffset - 23));
+        m_scrollLayer->m_contentLayer->addChild(m_nameInput);
         yOffset -= 50;
 
         // Author name
         auto authorLabel = CCLabelBMFont::create("Author name", "goldFont.fnt");
         authorLabel->setScale(0.5f);
-        m_scrollLayer->m_contentLayer->addChildAtPosition(authorLabel, Anchor::TopLeft, ccp(POPUP_WIDTH / 2, yOffset));
+        authorLabel->setPosition(ccp(POPUP_WIDTH / 2, yOffset));
+        m_scrollLayer->m_contentLayer->addChild(authorLabel);
 
         m_authorInput = TextInput::create(INPUT_WIDTH, std::string(level->m_creatorName));
         m_authorInput->setMaxCharCount(MAX_AUTHOR_LENGTH);
         m_authorInput->setString(current.author);
-        m_scrollLayer->m_contentLayer->addChildAtPosition(m_authorInput, Anchor::TopLeft, ccp(POPUP_WIDTH / 2, yOffset - 23));
+        m_authorInput->setPosition(ccp(POPUP_WIDTH / 2, yOffset - 23));
+        m_scrollLayer->m_contentLayer->addChild(m_authorInput);
         yOffset -= 50;
 
         // Downloads (main page)
         auto downloadsLabel = CCLabelBMFont::create("Downloads (Main Page)", "goldFont.fnt");
         downloadsLabel->setScale(0.5f);
-        m_scrollLayer->m_contentLayer->addChildAtPosition(downloadsLabel, Anchor::TopLeft, ccp(POPUP_WIDTH / 2, yOffset));
+        downloadsLabel->setPosition(ccp(POPUP_WIDTH / 2, yOffset));
+        m_scrollLayer->m_contentLayer->addChild(downloadsLabel);
 
         m_downloadsInput = TextInput::create(INPUT_WIDTH, "");
         m_downloadsInput->setMaxCharCount(MAX_DOWNLOADS_LENGTH);
         m_downloadsInput->setString(current.downloads);
-        m_scrollLayer->m_contentLayer->addChildAtPosition(m_downloadsInput, Anchor::TopLeft, ccp(POPUP_WIDTH / 2, yOffset - 23));
+        m_downloadsInput->setPosition(ccp(POPUP_WIDTH / 2, yOffset - 23));
+        m_scrollLayer->m_contentLayer->addChild(m_downloadsInput);
         yOffset -= 50;
 
         // Likes (main page)
         auto likesLabel = CCLabelBMFont::create("Likes (Main Page)", "goldFont.fnt");
         likesLabel->setScale(0.5f);
-        m_scrollLayer->m_contentLayer->addChildAtPosition(likesLabel, Anchor::TopLeft, ccp(POPUP_WIDTH / 2, yOffset));
+        likesLabel->setPosition(ccp(POPUP_WIDTH / 2, yOffset));
+        m_scrollLayer->m_contentLayer->addChild(likesLabel);
 
         m_likesInput = TextInput::create(INPUT_WIDTH, "");
         m_likesInput->setMaxCharCount(MAX_LIKES_LENGTH);
         m_likesInput->setString(current.likes);
-        m_scrollLayer->m_contentLayer->addChildAtPosition(m_likesInput, Anchor::TopLeft, ccp(POPUP_WIDTH / 2, yOffset - 23));
+        m_likesInput->setPosition(ccp(POPUP_WIDTH / 2, yOffset - 23));
+        m_scrollLayer->m_contentLayer->addChild(m_likesInput);
         yOffset -= 50;
 
         // Downloads (list cells)
         auto listDownloadsLabel = CCLabelBMFont::create("Downloads (List Cells)", "goldFont.fnt");
         listDownloadsLabel->setScale(0.5f);
-        m_scrollLayer->m_contentLayer->addChildAtPosition(listDownloadsLabel, Anchor::TopLeft, ccp(POPUP_WIDTH / 2, yOffset));
+        listDownloadsLabel->setPosition(ccp(POPUP_WIDTH / 2, yOffset));
+        m_scrollLayer->m_contentLayer->addChild(listDownloadsLabel);
 
         m_listDownloadsInput = TextInput::create(INPUT_WIDTH, "");
         m_listDownloadsInput->setMaxCharCount(MAX_DOWNLOADS_LENGTH);
         m_listDownloadsInput->setString(current.listDownloads);
-        m_scrollLayer->m_contentLayer->addChildAtPosition(m_listDownloadsInput, Anchor::TopLeft, ccp(POPUP_WIDTH / 2, yOffset - 23));
+        m_listDownloadsInput->setPosition(ccp(POPUP_WIDTH / 2, yOffset - 23));
+        m_scrollLayer->m_contentLayer->addChild(m_listDownloadsInput);
         yOffset -= 50;
 
         // Likes (list cells)
         auto listLikesLabel = CCLabelBMFont::create("Likes (List Cells)", "goldFont.fnt");
         listLikesLabel->setScale(0.5f);
-        m_scrollLayer->m_contentLayer->addChildAtPosition(listLikesLabel, Anchor::TopLeft, ccp(POPUP_WIDTH / 2, yOffset));
+        listLikesLabel->setPosition(ccp(POPUP_WIDTH / 2, yOffset));
+        m_scrollLayer->m_contentLayer->addChild(listLikesLabel);
 
         m_listLikesInput = TextInput::create(INPUT_WIDTH, "");
         m_listLikesInput->setMaxCharCount(MAX_LIKES_LENGTH);
         m_listLikesInput->setString(current.listLikes);
-        m_scrollLayer->m_contentLayer->addChildAtPosition(m_listLikesInput, Anchor::TopLeft, ccp(POPUP_WIDTH / 2, yOffset - 23));
+        m_listLikesInput->setPosition(ccp(POPUP_WIDTH / 2, yOffset - 23));
+        m_scrollLayer->m_contentLayer->addChild(m_listLikesInput);
 
         // Buttons (outside scroll layer)
         auto saveBtn = CCMenuItemSpriteExtra::create(
