@@ -340,12 +340,22 @@ static std::string formatNumberWithSuffix(int num) {
         double m = num / 1000000.0;
         char buf[32];
         snprintf(buf, sizeof(buf), "%.1fM", m);
-        return std::string(buf);
+        std::string s = buf;
+        // Remove trailing ".0"
+        if (s.find(".0M") != std::string::npos) {
+            s = s.substr(0, s.length() - 3) + "M";
+        }
+        return s;
     } else if (num >= 1000) {
         double k = num / 1000.0;
         char buf[32];
         snprintf(buf, sizeof(buf), "%.1fK", k);
-        return std::string(buf);
+        std::string s = buf;
+        // Remove trailing ".0"
+        if (s.find(".0K") != std::string::npos) {
+            s = s.substr(0, s.length() - 3) + "K";
+        }
+        return s;
     }
     return std::to_string(num);
 }
