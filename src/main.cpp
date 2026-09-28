@@ -1,5 +1,7 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/LevelInfoLayer.hpp>
+#include <Geode/modify/LevelCell.hpp>
+#include <Geode/modify/PauseLayer.hpp>
 #include <Geode/loader/GameEvent.hpp>
 #include <Geode/loader/SettingV3.hpp>
 #include <Geode/ui/Popup.hpp>
@@ -17,6 +19,10 @@ constexpr size_t MAX_AUTHOR_LENGTH = 30;
 // Icon detection next to the author name (in screen units)
 constexpr float ICON_MAX_SIZE = 50.0f; // only nodes smaller than this count as icons
 constexpr float ICON_MAX_GAP = 30.0f;  // how far from the name an icon can be
+
+// Longest a fake name may be in list cells / pause screen before it is
+// scaled down to fit (in screen units)
+constexpr float MAX_LABEL_WIDTH = 180.0f;
 
 // True while our popup is on screen, so it can't open twice.
 static bool s_popupOpen = false;
@@ -55,7 +61,7 @@ static void clearLevelOverride(int levelID) {
     log::debug("Cleared override for level {}", levelID);
 }
 
-// ---- Label helpers ----
+// ---- Label helpers (level info page) ----
 
 // Sets the text of a label, or of the label inside a button.
 static bool setLabelText(CCNode* node, std::string const& text) {
@@ -199,6 +205,82 @@ static void applyOverrides(CCNode* layer, GJGameLevel* level, bool force) {
     }
 }
 
+// ---- Label helpers (list cells and pause screen) ----
+
+// Searches root and all its descendants for a label whose text is exactly
+// one of the given strings.
+static CCLabelBMFont* findLabelWithText(CCNode* root, std::vector<std::string> const& texts) {
+    if (!root) return nullptr;
+
+    if (auto label = typeinfo_cast<CCLabelBMFont*>(root)) {
+        std::string current = label->getString();
+        for (auto const& t : texts) {
+            if (current == t) return label;
+        }
+    }
+
+    auto children = root->getChildren();
+    if (!children) return nullptr;
+    for (unsigned int i = 0; i < children->count(); i++) {
+        auto child = static_cast<CCNode*>(children->objectAtIndex(i));
+        if (auto found = findLabelWithText(child, texts)) return found;
+    }
+    return nullptr;
+}
+
+// Changes a label's text, shrinks it if the new text is too wide, and
+// resizes the button around it if it lives inside one.
+static void replaceLabelText(CCLabelBMFont* label, std::string const& text) {
+    float oldWidth = label->getScaledContentSize().width;
+    label->setString(text.c_str());
+
+    float maxWidth = std::max(oldWidth, MAX_LABEL_WIDTH);
+    float newWidth = label->getScaledContentSize().width;
+    if (newWidth > maxWidth && newWidth > 0) {
+        label->setScale(label->getScale() * maxWidth / newWidth);
+    }
+
+    if (auto btn = typeinfo_cast<CCMenuItemSpriteExtra*>(label->getParent())) {
+        btn->setContentSize(label->getScaledContentSize());
+        auto size = btn->getContentSize();
+        label->setPosition(ccp(size.width / 2, size.height / 2));
+    }
+}
+
+// Finds the level's name and author labels anywhere under root by matching
+// their text against the level's real name and creator, then swaps in the
+// saved overrides. Used for list cells and the pause screen.
+static void applyToLabels(CCNode* root, GJGameLevel* level) {
+    if (!root || !level) return;
+
+    int levelID = getLevelID(level);
+    if (levelID <= 0) return; // local/unsaved levels are not supported
+
+    auto ov = loadLevelOverride(levelID);
+    if (ov.name.empty() && ov.author.empty()) return;
+
+    std::string realName = level->m_levelName;
+    std::string realAuthor = level->m_creatorName;
+
+    if (!ov.name.empty() && !realName.empty()) {
+        if (auto label = findLabelWithText(root, { realName })) {
+            replaceLabelText(label, ov.name);
+        } else {
+            log::debug("Could not find level name label for level {}", levelID);
+        }
+    }
+
+    if (!ov.author.empty() && !realAuthor.empty()) {
+        if (auto label = findLabelWithText(root, { realAuthor, "By " + realAuthor })) {
+            // Keep a "By " prefix if the original label had one
+            bool hasPrefix = std::string(label->getString()).rfind("By ", 0) == 0;
+            replaceLabelText(label, hasPrefix ? "By " + ov.author : ov.author);
+        } else {
+            log::debug("Could not find author label for level {}", levelID);
+        }
+    }
+}
+
 // ---- Edit popup ----
 class EditNamePopup : public Popup {
 protected:
@@ -285,7 +367,7 @@ public:
     }
 };
 
-// ---- Hook: apply overrides when the level info page opens ----
+// ---- Hook: level info page ----
 class $modify(FakeNamesLevelInfoLayer, LevelInfoLayer) {
     bool init(GJGameLevel* level, bool challenge) {
         if (!LevelInfoLayer::init(level, challenge)) return false;
@@ -294,6 +376,26 @@ class $modify(FakeNamesLevelInfoLayer, LevelInfoLayer) {
         applyOverrides(this, level, false);
 
         return true;
+    }
+};
+
+// ---- Hook: level cells in lists (saved, created, search, ...) ----
+class $modify(FakeNamesLevelCell, LevelCell) {
+    void loadCustomLevelCell() {
+        LevelCell::loadCustomLevelCell();
+        applyToLabels(this, m_level);
+    }
+};
+
+// ---- Hook: pause screen ----
+class $modify(FakeNamesPauseLayer, PauseLayer) {
+    void customSetup() {
+        PauseLayer::customSetup();
+
+        auto playLayer = PlayLayer::get();
+        if (playLayer) {
+            applyToLabels(this, playLayer->m_level);
+        }
     }
 };
 
