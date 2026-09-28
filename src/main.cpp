@@ -14,6 +14,10 @@ constexpr float INPUT_WIDTH = 220.0f;
 constexpr size_t MAX_NAME_LENGTH = 50;
 constexpr size_t MAX_AUTHOR_LENGTH = 30;
 
+// Icon detection next to the author name (in screen units)
+constexpr float ICON_MAX_SIZE = 50.0f; // only nodes smaller than this count as icons
+constexpr float ICON_MAX_GAP = 30.0f;  // how far from the name an icon can be
+
 // True while our popup is on screen, so it can't open twice.
 static bool s_popupOpen = false;
 
@@ -75,6 +79,76 @@ static bool setLabelText(CCNode* node, std::string const& text) {
     return false;
 }
 
+// ---- Icon repositioning helpers ----
+
+// Bounding box of a node in world (screen) coordinates.
+static CCRect worldBounds(CCNode* n) {
+    auto size = n->getContentSize();
+    auto a = n->convertToWorldSpace(ccp(0, 0));
+    auto b = n->convertToWorldSpace(ccp(size.width, size.height));
+    return CCRect(
+        std::min(a.x, b.x), std::min(a.y, b.y),
+        std::abs(b.x - a.x), std::abs(b.y - a.y)
+    );
+}
+
+// A small node (like the copyright icon) that sits next to the author name.
+struct Neighbor {
+    CCNode* node;
+    CCPoint worldPos; // its position before the name changed
+    bool onRight;     // true if it sits to the right of the name
+};
+
+// Finds small nodes right next to the name button among root's children.
+static void collectNeighbors(CCNode* root, CCNode* nameNode, CCRect const& nameBox, std::vector<Neighbor>& out) {
+    if (!root) return;
+    auto children = root->getChildren();
+    if (!children) return;
+
+    float nameCenterY = nameBox.origin.y + nameBox.size.height / 2;
+    float nameRight = nameBox.origin.x + nameBox.size.width;
+    float nameLeft = nameBox.origin.x;
+
+    for (unsigned int i = 0; i < children->count(); i++) {
+        auto child = static_cast<CCNode*>(children->objectAtIndex(i));
+        if (!child || child == nameNode || !child->isVisible()) continue;
+
+        auto box = worldBounds(child);
+        if (box.size.width <= 0 || box.size.width > ICON_MAX_SIZE || box.size.height > ICON_MAX_SIZE) continue;
+
+        // Must be on roughly the same line as the name
+        float centerY = box.origin.y + box.size.height / 2;
+        if (std::abs(centerY - nameCenterY) > std::max(nameBox.size.height, box.size.height)) continue;
+
+        float gapRight = box.origin.x - nameRight;
+        float gapLeft = nameLeft - (box.origin.x + box.size.width);
+
+        auto parent = child->getParent();
+        if (!parent) continue;
+        auto worldPos = parent->convertToWorldSpace(child->getPosition());
+
+        if (gapRight >= -5.0f && gapRight <= ICON_MAX_GAP) {
+            out.push_back({ child, worldPos, true });
+        } else if (gapLeft >= -5.0f && gapLeft <= ICON_MAX_GAP) {
+            out.push_back({ child, worldPos, false });
+        }
+    }
+}
+
+// Moves the neighbors by however far the name's edges moved.
+static void shiftNeighbors(std::vector<Neighbor> const& list, CCRect const& before, CCRect const& after) {
+    float rightDelta = (after.origin.x + after.size.width) - (before.origin.x + before.size.width);
+    float leftDelta = after.origin.x - before.origin.x;
+
+    for (auto const& n : list) {
+        auto parent = n.node->getParent();
+        if (!parent) continue;
+        auto wp = n.worldPos;
+        wp.x += n.onRight ? rightDelta : leftDelta;
+        n.node->setPosition(parent->convertToNodeSpace(wp));
+    }
+}
+
 // Applies saved overrides to the info layer.
 // force = false: only touch labels that have an override (used at startup).
 // force = true: also restore the original text when there is no override
@@ -96,16 +170,29 @@ static void applyOverrides(CCNode* layer, GJGameLevel* level, bool force) {
         }
     }
 
-    // Author name
+    // Author name (and the icon next to it)
     if (force || !ov.author.empty()) {
         std::string original = level->m_creatorName;
         std::string text = ov.author.empty() ? original : ov.author;
 
         auto menu = layer->getChildByID("creator-info-menu");
-        if (menu && setLabelText(menu->getChildByID("creator-name"), text)) {
-            // Let the menu's layout re-space the author label and any icon
-            // next to it.
-            menu->updateLayout();
+        auto nameNode = menu ? menu->getChildByID("creator-name") : nullptr;
+
+        if (nameNode) {
+            // 1. Remember where the name and nearby icons are now
+            auto before = worldBounds(nameNode);
+            std::vector<Neighbor> neighbors;
+            collectNeighbors(menu, nameNode, before, neighbors);
+            collectNeighbors(layer, nameNode, before, neighbors);
+
+            // 2. Change the text
+            if (setLabelText(nameNode, text)) {
+                menu->updateLayout();
+
+                // 3. Move the icons by however far the name's edges moved
+                shiftNeighbors(neighbors, before, worldBounds(nameNode));
+                log::debug("Moved {} icon(s) next to the author name", neighbors.size());
+            }
         } else {
             log::debug("Could not find creator-name");
         }
