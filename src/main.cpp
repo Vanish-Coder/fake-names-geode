@@ -409,42 +409,42 @@ protected:
         // Level name
         auto nameLabel = CCLabelBMFont::create("Level name", "goldFont.fnt");
         nameLabel->setScale(0.5f);
-        m_mainLayer->addChildAtPosition(nameLabel, Anchor::Center, ccp(0, 45));
+        m_mainLayer->addChildAtPosition(nameLabel, Anchor::Center, ccp(0, 75));
 
         m_nameInput = TextInput::create(INPUT_WIDTH, std::string(level->m_levelName));
         m_nameInput->setMaxCharCount(MAX_NAME_LENGTH);
         m_nameInput->setString(current.name);
-        m_mainLayer->addChildAtPosition(m_nameInput, Anchor::Center, ccp(0, 22));
+        m_mainLayer->addChildAtPosition(m_nameInput, Anchor::Center, ccp(0, 52));
 
         // Author name
         auto authorLabel = CCLabelBMFont::create("Author name", "goldFont.fnt");
         authorLabel->setScale(0.5f);
-        m_mainLayer->addChildAtPosition(authorLabel, Anchor::Center, ccp(0, -12));
+        m_mainLayer->addChildAtPosition(authorLabel, Anchor::Center, ccp(0, 18));
 
         m_authorInput = TextInput::create(INPUT_WIDTH, std::string(level->m_creatorName));
         m_authorInput->setMaxCharCount(MAX_AUTHOR_LENGTH);
         m_authorInput->setString(current.author);
-        m_mainLayer->addChildAtPosition(m_authorInput, Anchor::Center, ccp(0, -35));
+        m_mainLayer->addChildAtPosition(m_authorInput, Anchor::Center, ccp(0, -5));
 
         // Downloads
         auto downloadsLabel = CCLabelBMFont::create("Downloads", "goldFont.fnt");
         downloadsLabel->setScale(0.5f);
-        m_mainLayer->addChildAtPosition(downloadsLabel, Anchor::Center, ccp(0, -70));
+        m_mainLayer->addChildAtPosition(downloadsLabel, Anchor::Center, ccp(0, -40));
 
         m_downloadsInput = TextInput::create(INPUT_WIDTH, "");
         m_downloadsInput->setMaxCharCount(MAX_DOWNLOADS_LENGTH);
         m_downloadsInput->setString(current.downloads);
-        m_mainLayer->addChildAtPosition(m_downloadsInput, Anchor::Center, ccp(0, -93));
+        m_mainLayer->addChildAtPosition(m_downloadsInput, Anchor::Center, ccp(0, -63));
 
         // Likes
         auto likesLabel = CCLabelBMFont::create("Likes", "goldFont.fnt");
         likesLabel->setScale(0.5f);
-        m_mainLayer->addChildAtPosition(likesLabel, Anchor::Center, ccp(0, -128));
+        m_mainLayer->addChildAtPosition(likesLabel, Anchor::Center, ccp(0, -98));
 
         m_likesInput = TextInput::create(INPUT_WIDTH, "");
         m_likesInput->setMaxCharCount(MAX_LIKES_LENGTH);
         m_likesInput->setString(current.likes);
-        m_mainLayer->addChildAtPosition(m_likesInput, Anchor::Center, ccp(0, -151));
+        m_mainLayer->addChildAtPosition(m_likesInput, Anchor::Center, ccp(0, -121));
 
         // Buttons
         auto saveBtn = CCMenuItemSpriteExtra::create(
