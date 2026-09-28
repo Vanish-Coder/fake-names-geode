@@ -11,10 +11,12 @@ using namespace geode::prelude;
 
 // ---- Layout constants (easy to tweak) ----
 constexpr float POPUP_WIDTH = 280.0f;
-constexpr float POPUP_HEIGHT = 190.0f;
+constexpr float POPUP_HEIGHT = 280.0f;
 constexpr float INPUT_WIDTH = 220.0f;
 constexpr size_t MAX_NAME_LENGTH = 50;
 constexpr size_t MAX_AUTHOR_LENGTH = 30;
+constexpr size_t MAX_DOWNLOADS_LENGTH = 10;
+constexpr size_t MAX_LIKES_LENGTH = 10;
 
 // Icon detection next to the author name (in screen units)
 constexpr float ICON_MAX_SIZE = 50.0f; // only nodes smaller than this count as icons
@@ -34,6 +36,8 @@ static bool s_popupOpen = false;
 struct LevelOverride {
     std::string name;
     std::string author;
+    std::string downloads;
+    std::string likes;
 };
 
 // m_levelID is a SeedValueRSV, so read it with .value()
@@ -50,18 +54,24 @@ static LevelOverride loadLevelOverride(int levelID) {
     LevelOverride ov;
     ov.name = Mod::get()->getSavedValue<std::string>(keyFor(levelID, "name"), std::string());
     ov.author = Mod::get()->getSavedValue<std::string>(keyFor(levelID, "author"), std::string());
+    ov.downloads = Mod::get()->getSavedValue<std::string>(keyFor(levelID, "downloads"), std::string());
+    ov.likes = Mod::get()->getSavedValue<std::string>(keyFor(levelID, "likes"), std::string());
     return ov;
 }
 
 static void saveLevelOverride(int levelID, LevelOverride const& ov) {
     Mod::get()->setSavedValue<std::string>(keyFor(levelID, "name"), ov.name);
     Mod::get()->setSavedValue<std::string>(keyFor(levelID, "author"), ov.author);
-    log::debug("Saved override for level {}: name='{}' author='{}'", levelID, ov.name, ov.author);
+    Mod::get()->setSavedValue<std::string>(keyFor(levelID, "downloads"), ov.downloads);
+    Mod::get()->setSavedValue<std::string>(keyFor(levelID, "likes"), ov.likes);
+    log::debug("Saved override for level {}: name='{}' author='{}' downloads='{}' likes='{}'", levelID, ov.name, ov.author, ov.downloads, ov.likes);
 }
 
 static void clearLevelOverride(int levelID) {
     Mod::get()->setSavedValue<std::string>(keyFor(levelID, "name"), std::string());
     Mod::get()->setSavedValue<std::string>(keyFor(levelID, "author"), std::string());
+    Mod::get()->setSavedValue<std::string>(keyFor(levelID, "downloads"), std::string());
+    Mod::get()->setSavedValue<std::string>(keyFor(levelID, "likes"), std::string());
     log::debug("Cleared override for level {}", levelID);
 }
 
@@ -194,7 +204,7 @@ static void applyOverrides(CCNode* layer, GJGameLevel* level, bool force) {
     // Author name (and the icon next to it)
     if (force || !ov.author.empty()) {
         std::string original = level->m_creatorName;
-        std::string text = ov.author.empty() ? original : ov.author;
+        std::string text = ov.author.empty() ? original : "By " + ov.author;
 
         auto menu = layer->getChildByID("creator-info-menu");
         auto nameNode = menu ? menu->getChildByID("creator-name") : nullptr;
@@ -216,6 +226,24 @@ static void applyOverrides(CCNode* layer, GJGameLevel* level, bool force) {
             }
         } else {
             log::debug("Could not find creator-name");
+        }
+    }
+
+    // Downloads
+    if (force || !ov.downloads.empty()) {
+        std::string original = std::to_string(level->m_downloads);
+        std::string text = ov.downloads.empty() ? original : ov.downloads;
+        if (!setLabelText(layer->getChildByID("downloads-label"), text)) {
+            log::debug("Could not find downloads-label");
+        }
+    }
+
+    // Likes
+    if (force || !ov.likes.empty()) {
+        std::string original = std::to_string(level->m_likes);
+        std::string text = ov.likes.empty() ? original : ov.likes;
+        if (!setLabelText(layer->getChildByID("likes-label"), text)) {
+            log::debug("Could not find likes-label");
         }
     }
 }
@@ -297,10 +325,12 @@ static void applyToLabels(CCNode* root, GJGameLevel* level) {
     if (levelID <= 0) return; // local/unsaved levels are not supported
 
     auto ov = loadLevelOverride(levelID);
-    if (ov.name.empty() && ov.author.empty()) return;
+    if (ov.name.empty() && ov.author.empty() && ov.downloads.empty() && ov.likes.empty()) return;
 
     std::string realName = level->m_levelName;
     std::string realAuthor = level->m_creatorName;
+    std::string realDownloads = std::to_string(level->m_downloads);
+    std::string realLikes = std::to_string(level->m_likes);
 
     if (!ov.name.empty() && !realName.empty()) {
         if (auto label = findLabelWithText(root, { realName })) {
@@ -336,6 +366,22 @@ static void applyToLabels(CCNode* root, GJGameLevel* level) {
             log::debug("Could not find author label for level {}", levelID);
         }
     }
+
+    if (!ov.downloads.empty() && !realDownloads.empty()) {
+        if (auto label = findLabelWithText(root, { realDownloads })) {
+            replaceLabelText(label, ov.downloads);
+        } else {
+            log::debug("Could not find downloads label for level {}", levelID);
+        }
+    }
+
+    if (!ov.likes.empty() && !realLikes.empty()) {
+        if (auto label = findLabelWithText(root, { realLikes })) {
+            replaceLabelText(label, ov.likes);
+        } else {
+            log::debug("Could not find likes label for level {}", levelID);
+        }
+    }
 }
 
 // ---- Edit popup ----
@@ -346,6 +392,8 @@ protected:
     int m_levelID = 0;
     TextInput* m_nameInput = nullptr;
     TextInput* m_authorInput = nullptr;
+    TextInput* m_downloadsInput = nullptr;
+    TextInput* m_likesInput = nullptr;
 
     bool init(CCNode* layer, GJGameLevel* level) {
         if (!Popup::init(POPUP_WIDTH, POPUP_HEIGHT)) return false;
@@ -378,6 +426,26 @@ protected:
         m_authorInput->setString(current.author);
         m_mainLayer->addChildAtPosition(m_authorInput, Anchor::Center, ccp(0, -35));
 
+        // Downloads
+        auto downloadsLabel = CCLabelBMFont::create("Downloads", "goldFont.fnt");
+        downloadsLabel->setScale(0.5f);
+        m_mainLayer->addChildAtPosition(downloadsLabel, Anchor::Center, ccp(0, -70));
+
+        m_downloadsInput = TextInput::create(INPUT_WIDTH, "");
+        m_downloadsInput->setMaxCharCount(MAX_DOWNLOADS_LENGTH);
+        m_downloadsInput->setString(current.downloads);
+        m_mainLayer->addChildAtPosition(m_downloadsInput, Anchor::Center, ccp(0, -93));
+
+        // Likes
+        auto likesLabel = CCLabelBMFont::create("Likes", "goldFont.fnt");
+        likesLabel->setScale(0.5f);
+        m_mainLayer->addChildAtPosition(likesLabel, Anchor::Center, ccp(0, -128));
+
+        m_likesInput = TextInput::create(INPUT_WIDTH, "");
+        m_likesInput->setMaxCharCount(MAX_LIKES_LENGTH);
+        m_likesInput->setString(current.likes);
+        m_mainLayer->addChildAtPosition(m_likesInput, Anchor::Center, ccp(0, -151));
+
         // Buttons
         auto saveBtn = CCMenuItemSpriteExtra::create(
             ButtonSprite::create("Save"), this, menu_selector(EditNamePopup::onSave)
@@ -396,6 +464,8 @@ protected:
         LevelOverride ov;
         ov.name = m_nameInput->getString();
         ov.author = m_authorInput->getString();
+        ov.downloads = m_downloadsInput->getString();
+        ov.likes = m_likesInput->getString();
         saveLevelOverride(m_levelID, ov);
         applyOverrides(m_layer.data(), m_level.data(), true);
         this->keyBackClicked(); // closes the popup, same as pressing back
@@ -405,6 +475,8 @@ protected:
         clearLevelOverride(m_levelID);
         m_nameInput->setString("");
         m_authorInput->setString("");
+        m_downloadsInput->setString("");
+        m_likesInput->setString("");
         applyOverrides(m_layer.data(), m_level.data(), true);
     }
 
