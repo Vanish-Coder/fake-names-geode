@@ -1,315 +1,253 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/LevelInfoLayer.hpp>
-#include <Geode/ui/Popup.hpp>
+#include <Geode/loader/GameEvent.hpp>
 #include <Geode/loader/SettingV3.hpp>
-#include <Geode/binding/CCTextInputNode.hpp>
-#include <Geode/binding/CCMenuItemLabel.hpp>
-#include <Geode/utils/NodeIDs.hpp>
+#include <Geode/ui/Popup.hpp>
+#include <Geode/ui/TextInput.hpp>
 
 using namespace geode::prelude;
 
-// Constants for layout (easy to tweak)
+// ---- Layout constants (easy to tweak) ----
 constexpr float POPUP_WIDTH = 280.0f;
-constexpr float POPUP_HEIGHT = 180.0f;
-constexpr float INPUT_WIDTH = 200.0f;
-constexpr float INPUT_HEIGHT = 30.0f;
-constexpr int MAX_NAME_LENGTH = 50;
-constexpr int MAX_AUTHOR_LENGTH = 30;
+constexpr float POPUP_HEIGHT = 190.0f;
+constexpr float INPUT_WIDTH = 220.0f;
+constexpr size_t MAX_NAME_LENGTH = 50;
+constexpr size_t MAX_AUTHOR_LENGTH = 30;
 
-// Structure to store override data for a level
+// True while our popup is on screen, so it can't open twice.
+static bool s_popupOpen = false;
+
 struct LevelOverride {
     std::string name;
     std::string author;
 };
 
-// Global variable to track if our popup is currently open
-static bool s_popupOpen = false;
-
-// Persistence functions
-std::string getLevelKey(int levelID) {
-    if (levelID == 0) {
-        return "local_level";
+// m_levelID may be a plain int or a wrapper type depending on version;
+// this handles both.
+template <class T>
+static int toInt(T const& v) {
+    if constexpr (requires { v.value(); }) {
+        return static_cast<int>(v.value());
+    } else {
+        return static_cast<int>(v);
     }
-    return "level_" + std::to_string(levelID);
 }
 
-LevelOverride loadLevelOverride(int levelID) {
-    std::string key = getLevelKey(levelID);
-    LevelOverride override;
-    
-    // Load name override
-    auto nameValue = Mod::get()->getSavedValue<std::string>(key + "_name", "");
-    override.name = nameValue;
-    
-    // Load author override
-    auto authorValue = Mod::get()->getSavedValue<std::string>(key + "_author", "");
-    override.author = authorValue;
-    
-    log::debug("Loaded override for level {}: name='{}', author='{}'", 
-               levelID, override.name, override.author);
-    
-    return override;
+static int getLevelID(GJGameLevel* level) {
+    return level ? toInt(level->m_levelID) : 0;
 }
 
-void saveLevelOverride(int levelID, const LevelOverride& override) {
-    std::string key = getLevelKey(levelID);
-    
-    // Save name override (empty string means no override)
-    Mod::get()->setSavedValue(key + "_name", override.name);
-    
-    // Save author override (empty string means no override)
-    Mod::get()->setSavedValue(key + "_author", override.author);
-    
-    log::debug("Saved override for level {}: name='{}', author='{}'", 
-               levelID, override.name, override.author);
+// ---- Persistence ----
+static std::string keyFor(int levelID, char const* field) {
+    return fmt::format("level_{}_{}", levelID, field);
 }
 
-void clearLevelOverride(int levelID) {
-    std::string key = getLevelKey(levelID);
-    
-    // Clear overrides by setting to empty strings
-    Mod::get()->setSavedValue(key + "_name", "");
-    Mod::get()->setSavedValue(key + "_author", "");
-    
+static LevelOverride loadLevelOverride(int levelID) {
+    LevelOverride ov;
+    ov.name = Mod::get()->getSavedValue<std::string>(keyFor(levelID, "name"), std::string());
+    ov.author = Mod::get()->getSavedValue<std::string>(keyFor(levelID, "author"), std::string());
+    return ov;
+}
+
+static void saveLevelOverride(int levelID, LevelOverride const& ov) {
+    Mod::get()->setSavedValue<std::string>(keyFor(levelID, "name"), ov.name);
+    Mod::get()->setSavedValue<std::string>(keyFor(levelID, "author"), ov.author);
+    log::debug("Saved override for level {}: name='{}' author='{}'", levelID, ov.name, ov.author);
+}
+
+static void clearLevelOverride(int levelID) {
+    Mod::get()->setSavedValue<std::string>(keyFor(levelID, "name"), std::string());
+    Mod::get()->setSavedValue<std::string>(keyFor(levelID, "author"), std::string());
     log::debug("Cleared override for level {}", levelID);
 }
 
-// Custom popup for editing level names
-class EditNamePopup : public geode::Popup {
-protected:
-    int m_levelID;
-    CCTextInputNode* m_nameInput;
-    CCTextInputNode* m_authorInput;
-    
-    bool init(int levelID, const std::string& currentName, const std::string& currentAuthor) {
-        if (!Popup::init(POPUP_WIDTH, POPUP_HEIGHT))
-            return false;
-        
-        m_levelID = levelID;
-        
-        // Set title
-        this->setTitle("Edit Level Names");
-        
-        // Add instruction text
-        auto instruction = CCLabelBMFont::create(
-            "Press 'O' to open this popup", 
-            "goldFont.fnt"
-        );
-        instruction->setScale(0.5f);
-        m_mainLayer->addChildAtPosition(instruction, Anchor::Top, ccp(0, -25));
-        
-        // Create name input
-        auto nameLabel = CCLabelBMFont::create("Level Name:", "bigFont.fnt");
-        nameLabel->setScale(0.5f);
-        m_mainLayer->addChildAtPosition(nameLabel, Anchor::Center, ccp(-INPUT_WIDTH/2 - 20, 20));
-        
-        m_nameInput = CCTextInputNode::create(INPUT_WIDTH, INPUT_HEIGHT, "", "bigFont.fnt");
-        m_nameInput->setString(currentName);
-        m_nameInput->setMaxLabelLength(MAX_NAME_LENGTH);
-        m_nameInput->setPlaceholderEnabled(true);
-        m_nameInput->setPlaceholderLabelColor({150, 150, 150});
-        m_mainLayer->addChildAtPosition(m_nameInput, Anchor::Center, ccp(20, 20));
-        
-        // Create author input
-        auto authorLabel = CCLabelBMFont::create("Author Name:", "bigFont.fnt");
-        authorLabel->setScale(0.5f);
-        m_mainLayer->addChildAtPosition(authorLabel, Anchor::Center, ccp(-INPUT_WIDTH/2 - 20, -20));
-        
-        m_authorInput = CCTextInputNode::create(INPUT_WIDTH, INPUT_HEIGHT, "", "bigFont.fnt");
-        m_authorInput->setString(currentAuthor);
-        m_authorInput->setMaxLabelLength(MAX_AUTHOR_LENGTH);
-        m_authorInput->setPlaceholderEnabled(true);
-        m_authorInput->setPlaceholderLabelColor({150, 150, 150});
-        m_mainLayer->addChildAtPosition(m_authorInput, Anchor::Center, ccp(20, -20));
-        
-        // Create simple menu items for buttons
-        auto saveBtn = CCMenuItemLabel::create(
-            CCLabelBMFont::create("Save", "bigFont.fnt"),
-            this,
-            menu_selector(EditNamePopup::onSave)
-        );
-        saveBtn->setScale(0.8f);
-        m_buttonMenu->addChildAtPosition(saveBtn, Anchor::Center, ccp(-40, -POPUP_HEIGHT/2 + 25));
-        
-        auto resetBtn = CCMenuItemLabel::create(
-            CCLabelBMFont::create("Reset", "bigFont.fnt"),
-            this,
-            menu_selector(EditNamePopup::onReset)
-        );
-        resetBtn->setScale(0.8f);
-        m_buttonMenu->addChildAtPosition(resetBtn, Anchor::Center, ccp(40, -POPUP_HEIGHT/2 + 25));
-        
+// ---- Label helpers ----
+
+// Sets the text of a label, or of the label inside a button.
+static bool setLabelText(CCNode* node, std::string const& text) {
+    if (!node) return false;
+
+    if (auto label = typeinfo_cast<CCLabelBMFont*>(node)) {
+        label->setString(text.c_str());
         return true;
     }
-    
-    void onSave(cocos2d::CCObject* sender) {
-        LevelOverride override;
-        override.name = m_nameInput->getString();
-        override.author = m_authorInput->getString();
-        
-        saveLevelOverride(m_levelID, override);
-        
-        // Close popup
-        this->close();
-        s_popupOpen = false;
-        
-        log::debug("Saved name override for level {}", m_levelID);
+
+    if (auto btn = typeinfo_cast<CCMenuItemSpriteExtra*>(node)) {
+        if (auto label = typeinfo_cast<CCLabelBMFont*>(btn->getNormalImage())) {
+            label->setString(text.c_str());
+            // Resize the button to fit the new text and re-center the label.
+            btn->setContentSize(label->getScaledContentSize());
+            auto size = btn->getContentSize();
+            label->setPosition(ccp(size.width / 2, size.height / 2));
+            return true;
+        }
     }
-    
-    void onReset(cocos2d::CCObject* sender) {
+    return false;
+}
+
+// Applies saved overrides to the info layer.
+// force = false: only touch labels that have an override (used at startup).
+// force = true: also restore the original text when there is no override
+//               (used after Save / Reset).
+static void applyOverrides(CCNode* layer, GJGameLevel* level, bool force) {
+    if (!layer || !level) return;
+
+    int levelID = getLevelID(level);
+    if (levelID <= 0) return; // local/unsaved levels are not supported
+
+    auto ov = loadLevelOverride(levelID);
+
+    // Level name
+    if (force || !ov.name.empty()) {
+        std::string original = level->m_levelName;
+        std::string text = ov.name.empty() ? original : ov.name;
+        if (!setLabelText(layer->getChildByID("title-label"), text)) {
+            log::debug("Could not find title-label");
+        }
+    }
+
+    // Author name
+    if (force || !ov.author.empty()) {
+        std::string original = level->m_creatorName;
+        std::string text = ov.author.empty() ? original : ov.author;
+
+        auto menu = layer->getChildByID("creator-info-menu");
+        if (menu && setLabelText(menu->getChildByID("creator-name"), text)) {
+            // Let the menu's layout re-space the author label and any icon
+            // next to it.
+            menu->updateLayout();
+        } else {
+            log::debug("Could not find creator-name");
+        }
+    }
+}
+
+// ---- Edit popup ----
+class EditNamePopup : public Popup {
+protected:
+    Ref<CCNode> m_layer;
+    Ref<GJGameLevel> m_level;
+    int m_levelID = 0;
+    TextInput* m_nameInput = nullptr;
+    TextInput* m_authorInput = nullptr;
+
+    bool init(CCNode* layer, GJGameLevel* level) {
+        if (!Popup::init(POPUP_WIDTH, POPUP_HEIGHT)) return false;
+
+        m_layer = layer;
+        m_level = level;
+        m_levelID = getLevelID(level);
+
+        this->setTitle("Edit Level Names");
+
+        auto current = loadLevelOverride(m_levelID);
+
+        // Level name
+        auto nameLabel = CCLabelBMFont::create("Level name", "goldFont.fnt");
+        nameLabel->setScale(0.5f);
+        m_mainLayer->addChildAtPosition(nameLabel, Anchor::Center, ccp(0, 45));
+
+        m_nameInput = TextInput::create(INPUT_WIDTH, std::string(level->m_levelName));
+        m_nameInput->setMaxCharCount(MAX_NAME_LENGTH);
+        m_nameInput->setString(current.name);
+        m_mainLayer->addChildAtPosition(m_nameInput, Anchor::Center, ccp(0, 22));
+
+        // Author name
+        auto authorLabel = CCLabelBMFont::create("Author name", "goldFont.fnt");
+        authorLabel->setScale(0.5f);
+        m_mainLayer->addChildAtPosition(authorLabel, Anchor::Center, ccp(0, -12));
+
+        m_authorInput = TextInput::create(INPUT_WIDTH, std::string(level->m_creatorName));
+        m_authorInput->setMaxCharCount(MAX_AUTHOR_LENGTH);
+        m_authorInput->setString(current.author);
+        m_mainLayer->addChildAtPosition(m_authorInput, Anchor::Center, ccp(0, -35));
+
+        // Buttons
+        auto saveBtn = CCMenuItemSpriteExtra::create(
+            ButtonSprite::create("Save"), this, menu_selector(EditNamePopup::onSave)
+        );
+        m_buttonMenu->addChildAtPosition(saveBtn, Anchor::Bottom, ccp(-50, 25));
+
+        auto resetBtn = CCMenuItemSpriteExtra::create(
+            ButtonSprite::create("Reset"), this, menu_selector(EditNamePopup::onReset)
+        );
+        m_buttonMenu->addChildAtPosition(resetBtn, Anchor::Bottom, ccp(50, 25));
+
+        return true;
+    }
+
+    void onSave(CCObject*) {
+        LevelOverride ov;
+        ov.name = m_nameInput->getString();
+        ov.author = m_authorInput->getString();
+        saveLevelOverride(m_levelID, ov);
+        applyOverrides(m_layer.data(), m_level.data(), true);
+        this->keyBackClicked(); // closes the popup, same as pressing back
+    }
+
+    void onReset(CCObject*) {
         clearLevelOverride(m_levelID);
-        
-        // Reset input fields
         m_nameInput->setString("");
         m_authorInput->setString("");
-        
-        log::debug("Reset name override for level {}", m_levelID);
+        applyOverrides(m_layer.data(), m_level.data(), true);
     }
-    
-    void onClose(cocos2d::CCObject* sender) override {
-        Popup::onClose(sender);
-        s_popupOpen = false;
-    }
-    
+
 public:
-    static EditNamePopup* create(int levelID, const std::string& currentName, const std::string& currentAuthor) {
+    static EditNamePopup* create(CCNode* layer, GJGameLevel* level) {
         auto ret = new EditNamePopup();
-        if (ret->init(levelID, currentName, currentAuthor)) {
+        if (ret->init(layer, level)) {
             ret->autorelease();
             return ret;
         }
         delete ret;
         return nullptr;
     }
+
+    ~EditNamePopup() {
+        s_popupOpen = false;
+    }
 };
 
-// Helper function to check if text input is focused
-bool isTextInputFocused() {
-    auto director = CCDirector::sharedDirector();
-    if (!director) return false;
-    
-    auto runningScene = director->getRunningScene();
-    if (!runningScene) return false;
-    
-    // Check if any CCTextInputNode is currently focused
-    // This is a simple check - in practice, we might need to check more specifically
-    auto inputNodes = runningScene->getChildren();
-    for (unsigned int i = 0; i < inputNodes->count(); i++) {
-        auto node = static_cast<CCNode*>(inputNodes->objectAtIndex(i));
-        if (auto input = typeinfo_cast<CCTextInputNode*>(node)) {
-            if (input->isFocusedOnTarget()) {
-                return true;
-            }
-        }
-    }
-    
-    return false;
-}
-
-// Hook LevelInfoLayer to override displayed names
+// ---- Hook: apply overrides when the level info page opens ----
 class $modify(FakeNamesLevelInfoLayer, LevelInfoLayer) {
     bool init(GJGameLevel* level, bool challenge) {
-        if (!LevelInfoLayer::init(level, challenge))
-            return false;
-        
-        log::debug("LevelInfoLayer::init called for level ID: {}", 
-                   level ? level->m_levelID : 0);
-        
-        // Ensure node IDs are provided
-        NodeIDs::get()->provide(this);
-        
-        // Apply name override if it exists
-        if (level) {
-            auto override = loadLevelOverride(level->m_levelID);
-            
-            if (!override.name.empty()) {
-                // Use the proper node ID from geode.node-ids
-                auto levelNameLabel = this->getChildByID("title-label");
-                
-                if (auto label = typeinfo_cast<CCLabelBMFont*>(levelNameLabel)) {
-                    label->setString(override.name.c_str());
-                    log::debug("Overridden level name to: {}", override.name);
-                } else {
-                    log::debug("Could not find title-label to override");
-                }
-            }
-            
-            if (!override.author.empty()) {
-                // Use the proper node ID from geode.node-ids
-                auto creatorInfoMenu = this->getChildByID("creator-info-menu");
-                CCNode* creatorNameNode = nullptr;
-                
-                if (creatorInfoMenu) {
-                    creatorNameNode = creatorInfoMenu->getChildByID("creator-name");
-                }
-                
-                if (auto label = typeinfo_cast<CCLabelBMFont*>(creatorNameNode)) {
-                    label->setString(override.author.c_str());
-                    log::debug("Overridden author name to: {}", override.author);
-                    
-                    // The creator info menu uses ColumnLayout, so it should handle
-                    // repositioning automatically when the label content changes
-                    if (creatorInfoMenu) {
-                        creatorInfoMenu->updateLayout();
-                    }
-                } else {
-                    log::debug("Could not find creator-name to override");
-                }
-            }
-        }
-        
+        if (!LevelInfoLayer::init(level, challenge)) return false;
+
+        log::debug("LevelInfoLayer::init for level {}", getLevelID(level));
+        applyOverrides(this, level, false);
+
         return true;
     }
 };
 
-// Keybind handler
+// ---- Keybind: open the edit popup ----
 $on_game(Loaded) {
-    listenForKeybindSettingPresses("open-popup-keybind", [](Keybind const& keybind, bool down, bool repeat, double timestamp) {
-        // Only fire on key down, not repeat
-        if (!down || repeat) return;
-        
-        // Don't fire if popup is already open
-        if (s_popupOpen) return;
-        
-        // Don't fire if text input is focused
-        if (isTextInputFocused()) return;
-        
-        // Check if we're on a LevelInfoLayer
-        auto director = CCDirector::sharedDirector();
-        if (!director) return;
-        
-        auto runningScene = director->getRunningScene();
-        if (!runningScene) return;
-        
-        // Try to find LevelInfoLayer in the current scene
-        auto children = runningScene->getChildren();
-        for (unsigned int i = 0; i < children->count(); i++) {
-            auto node = static_cast<CCNode*>(children->objectAtIndex(i));
-            if (auto levelInfoLayer = typeinfo_cast<LevelInfoLayer*>(node)) {
-                // Found LevelInfoLayer, open popup
-                if (levelInfoLayer->m_level) {
-                    s_popupOpen = true;
-                    
-                    auto override = loadLevelOverride(levelInfoLayer->m_level->m_levelID);
-                    
-                    auto popup = EditNamePopup::create(
-                        levelInfoLayer->m_level->m_levelID,
-                        override.name,
-                        override.author
-                    );
-                    
-                    if (popup) {
-                        popup->show();
-                        log::debug("Opened edit popup for level {}", 
-                                  levelInfoLayer->m_level->m_levelID);
-                    } else {
-                        s_popupOpen = false;
-                    }
-                }
+    listenForKeybindSettingPresses(
+        "open-popup-keybind",
+        [](Keybind const& keybind, bool down, bool repeat, double timestamp) {
+            if (!down || repeat) return;
+            if (s_popupOpen) return;
+
+            auto scene = CCDirector::sharedDirector()->getRunningScene();
+            if (!scene) return;
+
+            auto layer = scene->getChildByType<LevelInfoLayer>(0);
+            if (!layer || !layer->m_level) {
+                log::debug("Keybind pressed but no LevelInfoLayer is open");
                 return;
             }
+
+            if (getLevelID(layer->m_level) <= 0) {
+                log::debug("Local levels are not supported");
+                return;
+            }
+
+            auto popup = EditNamePopup::create(layer, layer->m_level);
+            if (popup) {
+                s_popupOpen = true;
+                popup->show();
+                log::debug("Opened edit popup");
+            }
         }
-        
-        log::debug("Keybind pressed but no LevelInfoLayer found");
-    });
+    );
 }
