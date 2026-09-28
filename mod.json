@@ -1,0 +1,27 @@
+{
+    "geode": "4.0.0",
+    "version": "1.0.0",
+    "id": "yourname.fakenames",
+    "name": "Fake Names",
+    "developer": "YourName",
+    "description": "Override displayed level names and author names locally",
+    "repository": "https://github.com/yourname/fake-names-geode",
+    "dependencies": [
+        {
+            "id": "geode.sdk",
+            "version": ">=2.0.0"
+        },
+        {
+            "id": "geode.node-ids",
+            "version": ">=1.0.0"
+        }
+    ],
+    "settings": {
+        "open-popup-keybind": {
+            "type": "keybind",
+            "name": "Open Edit Popup",
+            "default": "O",
+            "description": "Press this key to open the edit popup for the current level"
+        }
+    }
+}
