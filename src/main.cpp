@@ -440,8 +440,14 @@ static void applyToLabels(CCNode* root, GJGameLevel* level) {
     if (!ov.listDownloads.empty() && !realDownloads.empty()) {
         std::string formattedDownloads = formatNumber(level->m_downloads);
         std::string suffixDownloads = formatNumberWithSuffix(level->m_downloads);
-        log::debug("Looking for downloads label with text: '{}', '{}', or '{}'", realDownloads, formattedDownloads, suffixDownloads);
-        if (auto label = findLabelWithText(root, { realDownloads, formattedDownloads, suffixDownloads })) {
+        // Also try without decimal (e.g., "273K" instead of "273.1K")
+        std::string suffixDownloadsNoDec = suffixDownloads;
+        size_t dotPos = suffixDownloadsNoDec.find('.');
+        if (dotPos != std::string::npos) {
+            suffixDownloadsNoDec = suffixDownloadsNoDec.substr(0, dotPos) + suffixDownloadsNoDec.substr(dotPos + 2);
+        }
+        log::debug("Looking for downloads label with text: '{}', '{}', '{}', or '{}'", realDownloads, formattedDownloads, suffixDownloads, suffixDownloadsNoDec);
+        if (auto label = findLabelWithText(root, { realDownloads, formattedDownloads, suffixDownloads, suffixDownloadsNoDec })) {
             replaceLabelText(label, ov.listDownloads);
             log::debug("Found and replaced downloads label");
         } else {
@@ -452,8 +458,14 @@ static void applyToLabels(CCNode* root, GJGameLevel* level) {
     if (!ov.listLikes.empty() && !realLikes.empty()) {
         std::string formattedLikes = formatNumber(level->m_likes);
         std::string suffixLikes = formatNumberWithSuffix(level->m_likes);
-        log::debug("Looking for likes label with text: '{}', '{}', or '{}'", realLikes, formattedLikes, suffixLikes);
-        if (auto label = findLabelWithText(root, { realLikes, formattedLikes, suffixLikes })) {
+        // Also try without decimal (e.g., "2.9K" instead of "2.9K" - this handles cases where game removes .0)
+        std::string suffixLikesNoDec = suffixLikes;
+        size_t dotPos = suffixLikesNoDec.find('.');
+        if (dotPos != std::string::npos) {
+            suffixLikesNoDec = suffixLikesNoDec.substr(0, dotPos) + suffixLikesNoDec.substr(dotPos + 2);
+        }
+        log::debug("Looking for likes label with text: '{}', '{}', '{}', or '{}'", realLikes, formattedLikes, suffixLikes, suffixLikesNoDec);
+        if (auto label = findLabelWithText(root, { realLikes, formattedLikes, suffixLikes, suffixLikesNoDec })) {
             replaceLabelText(label, ov.listLikes);
             log::debug("Found and replaced likes label");
         } else {
