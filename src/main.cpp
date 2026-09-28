@@ -632,6 +632,7 @@ class $modify(FakeNamesLevelInfoLayer, LevelInfoLayer) {
 class $modify(FakeNamesLevelCell, LevelCell) {
     void loadCustomLevelCell() {
         LevelCell::loadCustomLevelCell();
+        log::debug("LevelCell::loadCustomLevelCell for level {}", getLevelID(m_level));
         applyToLabels(this, m_level);
     }
 };
