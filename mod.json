@@ -1,27 +1,21 @@
 {
-    "geode": "4.0.0",
-    "version": "1.0.0",
-    "id": "vanishcoder.fakenames",
-    "name": "Fake Names",
-    "developer": "Vanish-Coder",
-    "description": "Override displayed level names and author names locally",
-    "repository": "https://github.com/Vanish-Coder/fake-names-geode",
-    "dependencies": [
-        {
-            "id": "geode.sdk",
-            "version": ">=2.0.0"
-        },
-        {
-            "id": "geode.node-ids",
-            "version": ">=1.0.0"
-        }
-    ],
-    "settings": {
-        "open-popup-keybind": {
-            "type": "keybind",
-            "name": "Open Edit Popup",
-            "default": "O",
-            "description": "Press this key to open the edit popup for the current level"
-        }
+  "geode": "4.0.0",
+  "gd": { "win": "2.2074", "android": "2.2074", "mac": "2.2074" },
+  "version": "1.0.0",
+  "id": "vanishcoder.fakenames",
+  "name": "Fake Names",
+  "developer": "Vanish-Coder",
+  "description": "Override displayed level names and author names locally",
+  "repository": "https://github.com/Vanish-Coder/fake-names-geode",
+  "dependencies": {
+    "geode.node-ids": ">=v1.21.1"
+  },
+  "settings": {
+    "open-popup-keybind": {
+      "type": "keybind",
+      "name": "Open Edit Popup",
+      "default": "O",
+      "description": "Press this key to open the edit popup for the current level"
     }
+  }
 }
