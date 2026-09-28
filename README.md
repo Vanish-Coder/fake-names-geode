@@ -2,7 +2,7 @@
 
 A Geometry Dash mod that lets you override the displayed level name and author name of any level locally. Think "Fake Rate," but for names.
 
-**Mod ID**: `yourname.fakenames` (you should change this to your own mod ID)
+**Mod ID**: `vanishcoder.fakenames`
 
 ## Features
 
@@ -40,11 +40,9 @@ A Geometry Dash mod that lets you override the displayed level name and author n
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/fake-names-geode.git
+   git clone https://github.com/Vanish-Coder/fake-names-geode.git
    cd fake-names-geode
    ```
-
-2. **Update mod.json**: Change the `id`, `developer`, and `repository` fields to match your own information
 
 3. **Build the mod**:
    ```bash

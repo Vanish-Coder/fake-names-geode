@@ -1,11 +1,11 @@
 {
     "geode": "4.0.0",
     "version": "1.0.0",
-    "id": "yourname.fakenames",
+    "id": "vanishcoder.fakenames",
     "name": "Fake Names",
-    "developer": "YourName",
+    "developer": "Vanish-Coder",
     "description": "Override displayed level names and author names locally",
-    "repository": "https://github.com/yourname/fake-names-geode",
+    "repository": "https://github.com/Vanish-Coder/fake-names-geode",
     "dependencies": [
         {
             "id": "geode.sdk",
