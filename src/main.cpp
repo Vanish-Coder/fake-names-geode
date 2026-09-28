@@ -566,12 +566,12 @@ protected:
         auto saveBtn = CCMenuItemSpriteExtra::create(
             ButtonSprite::create("Save"), this, menu_selector(EditNamePopup::onSave)
         );
-        m_buttonMenu->addChildAtPosition(saveBtn, Anchor::Bottom, ccp(-50, 25));
+        m_buttonMenu->addChildAtPosition(saveBtn, Anchor::Bottom, ccp(-50, 40));
 
         auto resetBtn = CCMenuItemSpriteExtra::create(
             ButtonSprite::create("Reset"), this, menu_selector(EditNamePopup::onReset)
         );
-        m_buttonMenu->addChildAtPosition(resetBtn, Anchor::Bottom, ccp(50, 25));
+        m_buttonMenu->addChildAtPosition(resetBtn, Anchor::Bottom, ccp(50, 40));
 
         return true;
     }
