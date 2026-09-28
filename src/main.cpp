@@ -628,6 +628,19 @@ class $modify(FakeNamesLevelInfoLayer, LevelInfoLayer) {
     }
 };
 
+// Helper to log all label texts in a node tree
+static void logAllLabels(CCNode* node, int depth = 0) {
+    if (!node) return;
+    if (auto label = typeinfo_cast<CCLabelBMFont*>(node)) {
+        log::debug("  Label at depth {}: '{}'", depth, label->getString());
+    }
+    auto children = node->getChildren();
+    if (!children) return;
+    for (unsigned int i = 0; i < children->count(); i++) {
+        logAllLabels(static_cast<CCNode*>(children->objectAtIndex(i)), depth + 1);
+    }
+}
+
 // ---- Hook: level cells in lists (saved, created, search, ...) ----
 class $modify(FakeNamesLevelCell, LevelCell) {
     void loadCustomLevelCell() {
@@ -635,17 +648,6 @@ class $modify(FakeNamesLevelCell, LevelCell) {
         log::debug("LevelCell::loadCustomLevelCell for level {}", getLevelID(m_level));
 
         // Debug: log all label texts in this cell
-        auto logAllLabels = [](CCNode* node, int depth = 0) {
-            if (!node) return;
-            if (auto label = typeinfo_cast<CCLabelBMFont*>(node)) {
-                log::debug("  Label at depth {}: '{}'", depth, label->getString());
-            }
-            auto children = node->getChildren();
-            if (!children) return;
-            for (unsigned int i = 0; i < children->count(); i++) {
-                logAllLabels(static_cast<CCNode*>(children->objectAtIndex(i)), depth + 1);
-            }
-        };
         logAllLabels(this);
 
         applyToLabels(this, m_level);
