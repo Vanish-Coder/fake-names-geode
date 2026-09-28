@@ -11,9 +11,9 @@
 using namespace geode::prelude;
 
 // ---- Layout constants (easy to tweak) ----
-constexpr float POPUP_WIDTH = 280.0f;
-constexpr float POPUP_HEIGHT = 350.0f;
-constexpr float INPUT_WIDTH = 220.0f;
+constexpr float POPUP_WIDTH = 300.0f;
+constexpr float POPUP_HEIGHT = 400.0f;
+constexpr float INPUT_WIDTH = 240.0f;
 constexpr size_t MAX_NAME_LENGTH = 50;
 constexpr size_t MAX_AUTHOR_LENGTH = 30;
 constexpr size_t MAX_DOWNLOADS_LENGTH = 10;
@@ -323,6 +323,33 @@ static void replaceLabelText(CCLabelBMFont* label, std::string const& text) {
     }
 }
 
+// Helper to format a number with commas (e.g., 1234 -> "1,234")
+static std::string formatNumber(int num) {
+    std::string s = std::to_string(num);
+    int n = s.length() - 3;
+    while (n > 0) {
+        s.insert(n, ",");
+        n -= 3;
+    }
+    return s;
+}
+
+// Helper to format a number with suffixes (e.g., 3640000 -> "3.64 M")
+static std::string formatNumberWithSuffix(int num) {
+    if (num >= 1000000) {
+        double m = num / 1000000.0;
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%.2f M", m);
+        return std::string(buf);
+    } else if (num >= 1000) {
+        double k = num / 1000.0;
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%.2f K", k);
+        return std::string(buf);
+    }
+    return std::to_string(num);
+}
+
 // After a name changed width, pins one edge (or the centre) of it back to
 // where it was and moves nearby icons along with the name's edges.
 static void keepNameAnchored(CCNode* nameNode, CCRect const& before, std::vector<Neighbor> const& neighbors) {
@@ -401,8 +428,10 @@ static void applyToLabels(CCNode* root, GJGameLevel* level) {
     }
 
     if (!ov.listDownloads.empty() && !realDownloads.empty()) {
-        log::debug("Looking for downloads label with text: '{}'", realDownloads);
-        if (auto label = findLabelWithText(root, { realDownloads })) {
+        std::string formattedDownloads = formatNumber(level->m_downloads);
+        std::string suffixDownloads = formatNumberWithSuffix(level->m_downloads);
+        log::debug("Looking for downloads label with text: '{}', '{}', or '{}'", realDownloads, formattedDownloads, suffixDownloads);
+        if (auto label = findLabelWithText(root, { realDownloads, formattedDownloads, suffixDownloads })) {
             replaceLabelText(label, ov.listDownloads);
             log::debug("Found and replaced downloads label");
         } else {
@@ -411,8 +440,10 @@ static void applyToLabels(CCNode* root, GJGameLevel* level) {
     }
 
     if (!ov.listLikes.empty() && !realLikes.empty()) {
-        log::debug("Looking for likes label with text: '{}'", realLikes);
-        if (auto label = findLabelWithText(root, { realLikes })) {
+        std::string formattedLikes = formatNumber(level->m_likes);
+        std::string suffixLikes = formatNumberWithSuffix(level->m_likes);
+        log::debug("Looking for likes label with text: '{}', '{}', or '{}'", realLikes, formattedLikes, suffixLikes);
+        if (auto label = findLabelWithText(root, { realLikes, formattedLikes, suffixLikes })) {
             replaceLabelText(label, ov.listLikes);
             log::debug("Found and replaced likes label");
         } else {
@@ -447,11 +478,11 @@ protected:
         auto current = loadLevelOverride(m_levelID);
 
         // Create scroll layer
-        m_scrollLayer = ScrollLayer::create({ 0, 0, POPUP_WIDTH, POPUP_HEIGHT - 60 });
-        m_scrollLayer->m_contentLayer->setContentSize({ POPUP_WIDTH, 400.0f });
-        m_mainLayer->addChildAtPosition(m_scrollLayer, Anchor::Center, ccp(0, -10));
+        m_scrollLayer = ScrollLayer::create({ 0, 0, POPUP_WIDTH, POPUP_HEIGHT - 80 });
+        m_scrollLayer->m_contentLayer->setContentSize({ POPUP_WIDTH, 450.0f });
+        m_mainLayer->addChildAtPosition(m_scrollLayer, Anchor::Center, ccp(0, 10));
 
-        float yOffset = 300.0f;
+        float yOffset = 420.0f;
         float xOffset = 30.0f;
 
         // Level name
