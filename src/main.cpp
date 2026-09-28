@@ -334,17 +334,17 @@ static std::string formatNumber(int num) {
     return s;
 }
 
-// Helper to format a number with suffixes (e.g., 3640000 -> "3.64 M")
+// Helper to format a number with suffixes (e.g., 3640000 -> "3.6M")
 static std::string formatNumberWithSuffix(int num) {
     if (num >= 1000000) {
         double m = num / 1000000.0;
         char buf[32];
-        snprintf(buf, sizeof(buf), "%.2f M", m);
+        snprintf(buf, sizeof(buf), "%.1fM", m);
         return std::string(buf);
     } else if (num >= 1000) {
         double k = num / 1000.0;
         char buf[32];
-        snprintf(buf, sizeof(buf), "%.2f K", k);
+        snprintf(buf, sizeof(buf), "%.1fK", k);
         return std::string(buf);
     }
     return std::to_string(num);
