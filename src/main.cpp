@@ -22,19 +22,9 @@ struct LevelOverride {
     std::string author;
 };
 
-// m_levelID may be a plain int or a wrapper type depending on version;
-// this handles both.
-template <class T>
-static int toInt(T const& v) {
-    if constexpr (requires { v.value(); }) {
-        return static_cast<int>(v.value());
-    } else {
-        return static_cast<int>(v);
-    }
-}
-
+// m_levelID is a SeedValueRSV, so read it with .value()
 static int getLevelID(GJGameLevel* level) {
-    return level ? toInt(level->m_levelID) : 0;
+    return level ? level->m_levelID.value() : 0;
 }
 
 // ---- Persistence ----
