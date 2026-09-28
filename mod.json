@@ -1,6 +1,10 @@
 {
-  "geode": "4.0.0",
-  "gd": { "win": "2.2074", "android": "2.2074", "mac": "2.2074" },
+  "geode": "5.5.0",
+  "gd": {
+    "win": "2.2074",
+    "android": "2.2074",
+    "mac": "2.2074"
+  },
   "version": "1.0.0",
   "id": "vanishcoder.fakenames",
   "name": "Fake Names",
