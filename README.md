@@ -20,7 +20,7 @@ A Geometry Dash mod that lets you override the displayed level name and author n
 - CMake
 - Geode CLI
 
-## Building on macOS
+## Building on macOS - FOR DEVS ONLY
 
 ### Prerequisites
 
@@ -127,7 +127,7 @@ constexpr int MAX_AUTHOR_LENGTH = 30;
 
 ## License
 
-This mod is provided as-is for educational purposes.
+This mod is provided as-is under the MIT License.
 
 ## Credits
 
