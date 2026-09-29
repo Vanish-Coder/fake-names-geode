@@ -1,6 +1,6 @@
 # Fake Names
 
-A Geometry Dash mod that lets you override the displayed level name and author name of any level locally. Think "Fake Rate," but for names.
+A Geometry Dash mod that lets you override the displayed level name, author name, and level statistics of any level locally. Think "Fake Rate," but for names.
 
 **Mod ID**: `vanishcoder.fakenames`
 
