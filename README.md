@@ -99,7 +99,7 @@ The following items could not be verified during development and may need adjust
 
 4. **Text Input Focus Detection**: The current implementation checks for focused text inputs in the scene, but may not catch all cases. You may need to refine this based on actual testing.
 
-5. **Level Cell Hooks**: The mod currently only hooks LevelInfoLayer. Hooking level cells in browse/search/saved lists was not implemented due to uncertainty about the exact node structure. This can be added later if needed.
+5. **Level Cell Hooks**: The mod currently only hooks LevelInfoLayer. Hooking level cells in browse/search/saved lists was implemented, but could be slightly more unstable.
 
 ## Debug Logging
 
