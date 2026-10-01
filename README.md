@@ -15,10 +15,8 @@ A Geometry Dash mod that lets you override the displayed level name, author name
 
 ## Requirements
 
-- Geometry Dash on macOS (Steam) with Geode mod loader installed
-- Xcode Command Line Tools
-- CMake
-- Geode CLI
+- Geometry Dash with Geode mod loader installed
+- Certain helper mods (Geode will let you know which ones)
 
 ## Building on macOS - FOR DEVS ONLY
 
